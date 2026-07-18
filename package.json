@@ -1,23 +1,25 @@
 {
   "name": "itelect4-project",
   "version": "1.0.0",
-  "description": "",
+  "description": "Course Submission Tracker TypeScript demonstration",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node src/index.ts",
+    "typecheck": "tsc --noEmit"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rnzndrei/itelect4-project.git"
+    "url": "git+https://github.com/Pa-keys/itelect4-project.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/rnzndrei/itelect4-project/issues"
+    "url": "https://github.com/Pa-keys/itelect4-project/issues"
   },
-  "homepage": "https://github.com/rnzndrei/itelect4-project#readme",
+  "homepage": "https://github.com/Pa-keys/itelect4-project#readme",
   "devDependencies": {
     "@types/node": "^26.1.0",
     "ts-node": "^10.9.2",

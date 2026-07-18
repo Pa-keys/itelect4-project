@@ -1,4 +1,12 @@
-import type { User, Course, Submission } from "../types/index";
+﻿import { SubmissionStatus } from "../types/index";
+import type {
+  ApiResponse,
+  Course,
+  Submission,
+  SubmissionPreview,
+  SubmissionUpdate,
+  User,
+} from "../types/index";
 import type { StringOrNumber } from "../types/index";
 // ===== PRIMITIVE TYPE ANNOTATIONS =====
 // Variables with explicit types
@@ -74,3 +82,39 @@ function formatDate(value: string | Date): string {
 console.log(processInput("hello")); // HELLO
 console.log(processInput(3.14159)); // 3.14
 console.log(formatDate(new Date())); // e.g. 7/4/2026
+
+// ===== COURSE SUBMISSION TRACKER =====
+function getFirst<T>(items: T[]): T | undefined {
+  return items[0];
+}
+
+const submission: Submission = {
+  id: 1,
+  studentId: student.id,
+  courseCode: course.code,
+  repoUrl: "https://github.com/Pa-keys/itelect4-project",
+  submittedAt: new Date("2026-07-04"),
+  status: SubmissionStatus.Submitted,
+};
+
+const submissionResponse: ApiResponse<Submission> = {
+  success: true,
+  data: submission,
+  message: "Submission retrieved successfully.",
+};
+
+const submissionUpdate: SubmissionUpdate = {
+  status: SubmissionStatus.Graded,
+  score: 95.5,
+};
+
+const submissionPreview: SubmissionPreview = {
+  id: submission.id,
+  courseCode: submission.courseCode,
+  status: submission.status,
+};
+
+console.log(getFirst([student, submission.studentId]));
+console.log(submissionResponse);
+console.log(submissionUpdate);
+console.log(submissionPreview);

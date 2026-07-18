@@ -1,4 +1,4 @@
-// ===== INTERFACES =====
+﻿// ===== INTERFACES =====
 // An interface defines the SHAPE of an object -- what fields it must have.
     export interface User {
         id: number;
@@ -13,14 +13,29 @@
         units: number;
         semester: string;
     }
+    export enum SubmissionStatus {
+        Pending = "pending",
+        Submitted = "submitted",
+        Graded = "graded",
+    }
     export interface Submission {
         id: number;
         studentId: number;
         courseCode: string;
         repoUrl: string;
         submittedAt: Date;
+        status: SubmissionStatus;
         score?: number; // ? means this field is optional
     }
+
+    export interface ApiResponse<T> {
+        success: boolean;
+        data: T;
+        message?: string;
+    }
+
+    export type SubmissionUpdate = Partial<Submission>;
+    export type SubmissionPreview = Pick<Submission, "id" | "courseCode" | "status">;
 
 // ===== TYPE ALIASES =====
 // A type alias gives a name to any type -- primitives, unions, functions, objects
