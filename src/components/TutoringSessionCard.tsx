@@ -1,3 +1,3 @@
 import type { TutoringSession } from "../types";
-export interface TutoringSessionCardProps { session: TutoringSession; onBookSession: (id: TutoringSession["id"]) => void; }
-export function TutoringSessionCard({session,onBookSession}:TutoringSessionCardProps) { return <article className="card"><p>Tutoring session</p><h2>{session.subject}</h2><p>{session.scheduledAt.toLocaleString()}</p><p>{session.durationMinutes} minutes</p><button onClick={() => onBookSession(session.id)}>Book this session</button></article>; }
+export interface TutoringSessionCardProps { session: TutoringSession; tutorName: string; isBooked: boolean; onBookSession: (id: TutoringSession["id"]) => void; }
+export function TutoringSessionCard({session,tutorName,isBooked,onBookSession}:TutoringSessionCardProps) { return <article className="card"><p className="eyebrow">Available session</p><h2>{session.subject}</h2><p>With {tutorName}</p><p>{session.scheduledAt.toLocaleString()}</p><p>{session.durationMinutes} minutes</p><button type="button" disabled={isBooked} onClick={() => onBookSession(session.id)}>{isBooked ? "Booked" : "Book this session"}</button></article>; }

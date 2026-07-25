@@ -1,5 +1,5 @@
 export type UserRole = "tutor" | "tutee" | "admin";
-export interface User { id: string; name: string; email: string; role: UserRole; isActive: boolean; }
+export interface User { id: string; name: string; email: string; role: UserRole; isActive: boolean; bio?: string; subjects?: string[]; }
 export interface TutoringSession { id: string; tutorId: string; subject: string; scheduledAt: Date; durationMinutes: number; }
 export enum BookingStatus { Pending = "pending", Confirmed = "confirmed", Completed = "completed", Cancelled = "cancelled" }
 export interface Booking { id: string; sessionId: string; tuteeId: string; status: BookingStatus; note?: string; createdAt: Date; }
