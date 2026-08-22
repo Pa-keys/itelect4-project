@@ -1,12 +1,36 @@
 import { useNavigate, useParams } from "react-router";
-import { mockSessions, mockTutors } from "../data/mockData";
+import { useQuery } from "@tanstack/react-query";
+import { getSessions, getTutor } from "../api/client";
 
 function TutorDetailPage() {
   const { tutorId } = useParams<{ tutorId: string }>();
   const navigate = useNavigate();
-  const tutor = tutorId === undefined ? undefined : mockTutors.find((item) => item.id === tutorId);
+  const tutorQuery = useQuery({
+    queryKey: ["tutor", tutorId],
+    queryFn: () => getTutor(tutorId!),
+    enabled: tutorId !== undefined,
+  });
+  const sessionsQuery = useQuery({
+    queryKey: ["sessions", { tutorId }],
+    queryFn: () => getSessions(tutorId),
+    enabled: tutorId !== undefined,
+  });
 
-  if (tutor === undefined) {
+  if (tutorId === undefined) {
+    return <section className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"><h1 className="text-xl font-semibold">Tutor not found</h1><p className="mt-2 text-sm">The tutor ID is missing.</p></section>;
+  }
+
+  if (tutorQuery.isPending || sessionsQuery.isPending) {
+    return <section className="mx-auto max-w-3xl rounded-2xl border border-slate-200/80 bg-white/95 p-6 text-sm text-slate-600 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 dark:text-slate-300">Loading tutor profile...</section>;
+  }
+
+  if (tutorQuery.isError || sessionsQuery.isError) {
+    return <section className="mx-auto max-w-3xl rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100"><h1 className="text-xl font-semibold">Could not load tutor data.</h1><p className="mt-2 text-sm">Check that the tutoring API is running, then try again.</p><button type="button" onClick={() => { void tutorQuery.refetch(); void sessionsQuery.refetch(); }} className="mt-4 rounded-xl bg-rose-600 px-3 py-2 text-sm font-semibold text-white">Retry loading</button></section>;
+  }
+
+  const tutor = tutorQuery.data;
+
+  if (tutor === null) {
     return (
       <section className="mx-auto max-w-2xl rounded-2xl border border-rose-200 bg-rose-50 p-5 text-rose-900 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
         <h1 className="text-xl font-semibold">Tutor not found</h1>
@@ -18,7 +42,7 @@ function TutorDetailPage() {
     );
   }
 
-  const sessions = mockSessions.filter((session) => session.tutorId === tutor.id);
+  const sessions = sessionsQuery.data;
 
   return (
     <section className="mx-auto max-w-3xl rounded-2xl border border-slate-200/80 bg-white/95 p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900/95 sm:p-6">

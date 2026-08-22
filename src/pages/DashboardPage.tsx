@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { createBooking, getSessions, getTutors } from "../api/client";
 import { BookingBadge } from "../components/BookingBadge";
 import { TutoringSessionCard } from "../components/TutoringSessionCard";
 import { UserCard } from "../components/UserCard";
 import usePrevious from "../hooks/usePrevious";
 import useToggle from "../hooks/useToggle";
-import { mockSessions, mockTutors, tutee } from "../data/mockData";
+import { tutee } from "../data/mockData";
 import {
   BookingStatus,
   type Booking,
-  type TutoringSession,
-  type User,
+  type NewBooking,
 } from "../types";
 
 const dayFormatter = new Intl.DateTimeFormat("en-PH", {
@@ -29,46 +30,32 @@ function DashboardPage() {
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
   const [note, setNote] = useState<string>("");
-  const [tutors, setTutors] = useState<User[]>([]);
-  const [sessions, setSessions] = useState<TutoringSession[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [isError, setIsError] = useState<boolean>(false);
   const [showSearchTip, toggleSearchTip] = useToggle(true);
   const previousSearch = usePrevious<string>(search);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const loadTimeoutRef = useRef<number | null>(null);
+  const queryClient = useQueryClient();
+  const tutorsQuery = useQuery({ queryKey: ["tutors"], queryFn: getTutors });
+  const sessionsQuery = useQuery({ queryKey: ["sessions"], queryFn: () => getSessions() });
+  const tutors = tutorsQuery.data ?? [];
+  const sessions = sessionsQuery.data ?? [];
+  const isLoading = tutorsQuery.isPending || sessionsQuery.isPending;
+  const isError = tutorsQuery.isError || sessionsQuery.isError;
+  const bookingMutation = useMutation({
+    mutationFn: (payload: NewBooking) => createBooking(payload),
+    onSuccess: (createdBooking) => {
+      setBooking(createdBooking);
+      void queryClient.invalidateQueries({ queryKey: ["bookings", tutee.id], exact: true });
+    },
+  });
 
-  const loadMockData = (shouldFail: boolean = false): void => {
-    setIsLoading(true);
-    setIsError(false);
-
-    if (loadTimeoutRef.current !== null) {
-      window.clearTimeout(loadTimeoutRef.current);
-    }
-
-    loadTimeoutRef.current = window.setTimeout(() => {
-      if (shouldFail) {
-        setIsLoading(false);
-        setIsError(true);
-        return;
-      }
-
-      setTutors(mockTutors);
-      setSessions(mockSessions);
-      setIsLoading(false);
-      searchInputRef.current?.focus();
-    }, 300);
+  const reloadTutorData = (): void => {
+    void tutorsQuery.refetch();
+    void sessionsQuery.refetch();
   };
 
   useEffect(() => {
-    loadMockData();
-
-    return () => {
-      if (loadTimeoutRef.current !== null) {
-        window.clearTimeout(loadTimeoutRef.current);
-      }
-    };
-  }, []);
+    if (!isLoading && !isError) searchInputRef.current?.focus();
+  }, [isError, isLoading]);
 
   const filteredTutors = useMemo(
     () =>
@@ -105,13 +92,12 @@ function DashboardPage() {
   };
 
   const handleBook = (sessionId: string): void => {
-    setBooking({
-      id: `booking-${Date.now()}`,
+    bookingMutation.mutate({
       sessionId,
       tuteeId: tutee.id,
       status: BookingStatus.Confirmed,
-      note,
-      createdAt: new Date(),
+      note: note.trim() || undefined,
+      createdAt: new Date().toISOString(),
     });
   };
 
@@ -152,12 +138,12 @@ function DashboardPage() {
       </p>
       <h2 className="mt-2 text-xl font-semibold">Could not load tutor data.</h2>
       <p className="mt-2 max-w-2xl text-sm leading-6 text-rose-800/90 dark:text-rose-100/80">
-        The mock session list did not finish loading. Use the retry action to
-        restore the tutor directory and booking workflow.
+        The tutoring API did not respond. Check that it is running, then use the
+        retry action to restore the tutor directory and booking workflow.
       </p>
       <button
         type="button"
-        onClick={() => loadMockData()}
+        onClick={reloadTutorData}
         className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950"
       >
         Retry loading
@@ -258,6 +244,7 @@ function DashboardPage() {
                   session={session}
                   tutorName={tutor.name}
                   isBooked={booking?.sessionId === session.id}
+                  isBookingPending={bookingMutation.isPending}
                   onBookSession={handleBook}
                   variant={selectedTutorId ? "compact" : "default"}
                 />
@@ -336,6 +323,10 @@ function DashboardPage() {
             </div>
           )}
 
+          {bookingMutation.isError && (
+            <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">The booking could not be saved. Check the API and try again.</p>
+          )}
+
           <label
             htmlFor="booking-note"
             className="mt-3 block text-xs font-medium text-slate-700 dark:text-slate-200"
@@ -353,21 +344,20 @@ function DashboardPage() {
 
         <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-            Demo controls
+            API controls
           </p>
           <h2 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-            Status controls
+            Refresh data
           </h2>
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Use this control to verify the styled loading and error states required
-            by GT2 Part 3.
+            Reload the tutor and session collections from json-server.
           </p>
           <button
             type="button"
-            onClick={() => loadMockData(true)}
-            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-2xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-200 dark:hover:bg-rose-500/15 dark:focus-visible:ring-offset-slate-950"
+            onClick={reloadTutorData}
+            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/15 dark:focus-visible:ring-offset-slate-950"
           >
-            Simulate load error
+            Refresh tutor data
           </button>
         </section>
       </aside>

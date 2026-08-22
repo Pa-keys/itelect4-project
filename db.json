@@ -1,0 +1,62 @@
+{
+  "tutors": [
+    {
+      "id": "tutor-1",
+      "name": "Maria Santos",
+      "email": "maria@example.com",
+      "role": "tutor",
+      "isActive": true,
+      "bio": "Patient programming tutor who loves practical examples.",
+      "subjects": [
+        "TypeScript",
+        "React",
+        "JavaScript"
+      ]
+    },
+    {
+      "id": "tutor-2",
+      "name": "Alex Rivera",
+      "email": "alex@example.com",
+      "role": "tutor",
+      "isActive": true,
+      "bio": "Computer science tutor focused on clear fundamentals.",
+      "subjects": [
+        "Python",
+        "Data Structures",
+        "Algorithms"
+      ]
+    }
+  ],
+  "sessions": [
+    {
+      "id": "session-1",
+      "tutorId": "tutor-1",
+      "subject": "TypeScript Fundamentals",
+      "scheduledAt": "2026-08-01T10:00:00+08:00",
+      "durationMinutes": 60
+    },
+    {
+      "id": "session-2",
+      "tutorId": "tutor-1",
+      "subject": "React Components",
+      "scheduledAt": "2026-08-02T14:00:00+08:00",
+      "durationMinutes": 60
+    },
+    {
+      "id": "session-3",
+      "tutorId": "tutor-2",
+      "subject": "Data Structures",
+      "scheduledAt": "2026-08-03T09:00:00+08:00",
+      "durationMinutes": 90
+    },
+    {
+      "id": "session-4",
+      "tutorId": "tutor-2",
+      "subject": "Algorithm Problem Solving",
+      "scheduledAt": "2026-08-04T15:30:00+08:00",
+      "durationMinutes": 60
+    }
+  ],
+  "bookings": [],
+  "$schema": "./node_modules/json-server/schema.json"
+}

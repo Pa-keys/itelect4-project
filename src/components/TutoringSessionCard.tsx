@@ -4,6 +4,7 @@ export interface TutoringSessionCardProps {
   session: TutoringSession;
   tutorName: string;
   isBooked: boolean;
+  isBookingPending?: boolean;
   onBookSession: (id: TutoringSession["id"]) => void;
   variant?: "default" | "compact";
 }
@@ -23,6 +24,7 @@ export function TutoringSessionCard({
   session,
   tutorName,
   isBooked,
+  isBookingPending = false,
   onBookSession,
   variant = "default",
 }: TutoringSessionCardProps) {
@@ -90,11 +92,11 @@ export function TutoringSessionCard({
 
       <button
         type="button"
-        disabled={isBooked}
+        disabled={isBooked || isBookingPending}
         onClick={() => onBookSession(session.id)}
         className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-xl bg-sky-600 px-3 py-2 text-xs font-semibold text-white transition hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:bg-slate-200 disabled:text-slate-500 dark:focus-visible:ring-offset-slate-950 dark:disabled:bg-slate-700 dark:disabled:text-slate-300"
       >
-        {isBooked ? "Booked for this student" : "Book this session"}
+        {isBooked ? "Booked for this student" : isBookingPending ? "Saving booking..." : "Book this session"}
       </button>
     </article>
   );
