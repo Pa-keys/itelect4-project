@@ -1,13 +1,19 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { createBooking, getSessions, getTutors } from "../api/client";
 import { BookingBadge } from "../components/BookingBadge";
 import { TutoringSessionCard } from "../components/TutoringSessionCard";
 import { UserCard } from "../components/UserCard";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import usePrevious from "../hooks/usePrevious";
 import useToggle from "../hooks/useToggle";
 import { tutee } from "../data/mockData";
+import { bookingSchema, type BookingFormValues } from "../schemas/bookingSchema";
 import {
   BookingStatus,
   type Booking,
@@ -29,11 +35,16 @@ function DashboardPage() {
   const [search, setSearch] = useState<string>("");
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   const [booking, setBooking] = useState<Booking | null>(null);
-  const [note, setNote] = useState<string>("");
   const [showSearchTip, toggleSearchTip] = useToggle(true);
   const previousSearch = usePrevious<string>(search);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const bookingForm = useForm<BookingFormValues>({
+    resolver: zodResolver(bookingSchema),
+    mode: "onBlur",
+    defaultValues: { sessionId: "", note: "" },
+  });
+  const selectedSessionId = bookingForm.watch("sessionId");
   const tutorsQuery = useQuery({ queryKey: ["tutors"], queryFn: getTutors });
   const sessionsQuery = useQuery({ queryKey: ["sessions"], queryFn: () => getSessions() });
   const tutors = tutorsQuery.data ?? [];
@@ -44,6 +55,7 @@ function DashboardPage() {
     mutationFn: (payload: NewBooking) => createBooking(payload),
     onSuccess: (createdBooking) => {
       setBooking(createdBooking);
+      bookingForm.reset();
       void queryClient.invalidateQueries({ queryKey: ["bookings", tutee.id], exact: true });
     },
   });
@@ -85,18 +97,20 @@ function DashboardPage() {
     setSearch(event.target.value);
   };
 
-  const handleNoteChange = (
-    event: React.ChangeEvent<HTMLInputElement>,
-  ): void => {
-    setNote(event.target.value);
+  const handleSelectSession = (sessionId: string): void => {
+    bookingForm.setValue("sessionId", sessionId, {
+      shouldDirty: true,
+      shouldTouch: true,
+      shouldValidate: true,
+    });
   };
 
-  const handleBook = (sessionId: string): void => {
+  const handleBook = (values: BookingFormValues): void => {
     bookingMutation.mutate({
-      sessionId,
+      sessionId: values.sessionId,
       tuteeId: tutee.id,
       status: BookingStatus.Confirmed,
-      note: note.trim() || undefined,
+      note: values.note.trim() || undefined,
       createdAt: new Date().toISOString(),
     });
   };
@@ -203,13 +217,13 @@ function DashboardPage() {
         )}
       </section>
 
-      <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
+      <section role="group" aria-labelledby="session-selection-heading" aria-describedby={bookingForm.formState.errors.sessionId ? "sessionId-error" : undefined} className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
               Session availability
             </p>
-            <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
+            <h2 id="session-selection-heading" className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
               {selectedTutor
                 ? `Sessions with ${selectedTutor.name}`
                 : "All available sessions"}
@@ -229,6 +243,7 @@ function DashboardPage() {
           )}
         </div>
 
+        <input type="hidden" {...bookingForm.register("sessionId")} aria-invalid={bookingForm.formState.errors.sessionId ? true : undefined} />
         {visibleSessions.length === 0 ? (
           <div className="mt-4 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
             No sessions are available for this tutor right now.
@@ -243,17 +258,23 @@ function DashboardPage() {
                   key={session.id}
                   session={session}
                   tutorName={tutor.name}
-                  isBooked={booking?.sessionId === session.id}
+                  isSelected={selectedSessionId === session.id}
                   isBookingPending={bookingMutation.isPending}
-                  onBookSession={handleBook}
+                  onBookSession={handleSelectSession}
                   variant={selectedTutorId ? "compact" : "default"}
                 />
               ) : null;
             })}
           </div>
         )}
+        {bookingForm.formState.errors.sessionId && (
+          <p id="sessionId-error" role="alert" className="mt-3 text-sm font-medium text-rose-700 dark:text-rose-300">
+            {bookingForm.formState.errors.sessionId.message}
+          </p>
+        )}
       </section>
 
+      <form onSubmit={bookingForm.handleSubmit(handleBook)} noValidate>
       <aside className="min-w-0 space-y-2">
         <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
           <div className="flex items-start justify-between gap-3">
@@ -327,19 +348,36 @@ function DashboardPage() {
             <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">The booking could not be saved. Check the API and try again.</p>
           )}
 
-          <label
-            htmlFor="booking-note"
-            className="mt-3 block text-xs font-medium text-slate-700 dark:text-slate-200"
-          >
-            Booking note
-            <input
+          <div className="mt-3 space-y-1.5">
+            <Label htmlFor="booking-note" className="text-slate-700 dark:text-slate-200">
+              Learning note (optional)
+            </Label>
+            <Input
               id="booking-note"
-              value={note}
-              onChange={handleNoteChange}
+              {...bookingForm.register("note")}
+              aria-invalid={bookingForm.formState.errors.note ? true : undefined}
+              aria-describedby={bookingForm.formState.errors.note ? "booking-note-error" : "booking-note-help"}
               placeholder="What would you like to focus on during the session?"
-              className="mt-1.5 min-h-10 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-sky-500/20"
+              className="min-h-10 rounded-xl border-slate-300 bg-white text-slate-900 focus-visible:border-sky-500 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus-visible:ring-sky-500/20"
             />
-          </label>
+            {bookingForm.formState.errors.note ? (
+              <p id="booking-note-error" role="alert" className="text-sm font-medium text-rose-700 dark:text-rose-300">
+                {bookingForm.formState.errors.note.message}
+              </p>
+            ) : (
+              <p id="booking-note-help" className="text-xs text-slate-500 dark:text-slate-400">
+                If included, write at least 10 meaningful characters (maximum 160).
+              </p>
+            )}
+          </div>
+
+          <Button
+            type="submit"
+            disabled={bookingMutation.isPending}
+            className="mt-3 min-h-10 w-full rounded-xl bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-500 dark:bg-sky-600 dark:text-white dark:hover:bg-sky-500"
+          >
+            {bookingMutation.isPending ? "Saving booking..." : "Confirm selected session"}
+          </Button>
         </section>
 
         <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
@@ -361,6 +399,7 @@ function DashboardPage() {
           </button>
         </section>
       </aside>
+      </form>
     </div>
   );
 
