@@ -12,7 +12,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }): string =>
 function Layout() {
   const isDarkMode = useUiStore((state) => state.isDarkMode);
   const toggleDarkMode = useUiStore((state) => state.toggleDarkMode);
-  const userName = useAuthStore((state) => state.userName);
+  const userName = useAuthStore((state) => state.user?.name ?? null);
   const logout = useAuthStore((state) => state.logout);
   const navigate = useNavigate();
 
@@ -38,7 +38,10 @@ function Layout() {
             <NavLink to="/bookings" className={navLinkClass}>My Bookings</NavLink>
             <div className="ml-auto flex items-center gap-2">
               {userName === null ? (
-                <NavLink to="/login" className={navLinkClass}>Login</NavLink>
+                <>
+                  <NavLink to="/login" className={navLinkClass}>Login</NavLink>
+                  <NavLink to="/register" className={navLinkClass}>Register</NavLink>
+                </>
               ) : (
                 <button
                   type="button"

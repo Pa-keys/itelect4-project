@@ -4,6 +4,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import BookingsPage from "./pages/BookingsPage";
 import DashboardPage from "./pages/DashboardPage";
 import LoginPage from "./pages/LoginPage";
+import RegisterPage from "./pages/RegisterPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import SessionsPage from "./pages/SessionsPage";
 import TutorDetailPage from "./pages/TutorDetailPage";
@@ -18,6 +19,7 @@ function App() {
         <Route path="tutors/:tutorId" element={<TutorDetailPage />} />
         <Route path="sessions" element={<SessionsPage />} />
         <Route path="login" element={<LoginPage />} />
+        <Route path="register" element={<RegisterPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="bookings" element={<BookingsPage />} />
         </Route>
