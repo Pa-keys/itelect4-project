@@ -1,10 +1,11 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import type { AuthenticatedUser } from "../types";
 
 export interface AuthState {
   token: string | null;
-  userName: string | null;
-  login: (userName: string) => void;
+  user: AuthenticatedUser | null;
+  setSession: (token: string, user: AuthenticatedUser) => void;
   logout: () => void;
 }
 
@@ -12,17 +13,14 @@ const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
       token: null,
-      userName: null,
-      login: (userName) =>
-        set({
-          token: `peer-tutoring-token-${userName.trim().toLowerCase().replace(/\s+/g, "-")}`,
-          userName: userName.trim(),
-        }),
-      logout: () => set({ token: null, userName: null }),
+      user: null,
+      setSession: (token, user) => set({ token, user }),
+      logout: () => set({ token: null, user: null }),
     }),
     {
       name: "peer-tutoring-auth",
-      partialize: ({ token, userName }) => ({ token, userName }),
+      version: 2,
+      partialize: ({ token, user }) => ({ token, user }),
     },
   ),
 );

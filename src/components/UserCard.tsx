@@ -1,9 +1,9 @@
-import type { User } from "../types";
+import type { Tutor } from "../types";
 
 export interface UserCardProps {
-  user: User;
+  user: Tutor;
   isSelected?: boolean;
-  onSelectTutor: (id: User["id"]) => void;
+  onSelectTutor: (id: Tutor["id"]) => void;
 }
 
 export function UserCard({

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type React from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router";
+import { createBooking, getBookings, getSessions, getTutors } from "../api/client";
 import { useForm } from "react-hook-form";
-import { createBooking, getSessions, getTutors } from "../api/client";
 import { BookingBadge } from "../components/BookingBadge";
 import { TutoringSessionCard } from "../components/TutoringSessionCard";
 import { UserCard } from "../components/UserCard";
@@ -12,7 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import usePrevious from "../hooks/usePrevious";
 import useToggle from "../hooks/useToggle";
-import { tutee } from "../data/mockData";
+import useAuthStore from "../store/authStore";
 import { bookingSchema, type BookingFormValues } from "../schemas/bookingSchema";
 import {
   BookingStatus,
@@ -34,11 +35,13 @@ const timeFormatter = new Intl.DateTimeFormat("en-PH", {
 function DashboardPage() {
   const [search, setSearch] = useState<string>("");
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
-  const [booking, setBooking] = useState<Booking | null>(null);
   const [showSearchTip, toggleSearchTip] = useToggle(true);
   const previousSearch = usePrevious<string>(search);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const userName = useAuthStore((state) => state.user?.name ?? null);
   const bookingForm = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     mode: "onBlur",
@@ -47,16 +50,20 @@ function DashboardPage() {
   const selectedSessionId = bookingForm.watch("sessionId");
   const tutorsQuery = useQuery({ queryKey: ["tutors"], queryFn: getTutors });
   const sessionsQuery = useQuery({ queryKey: ["sessions"], queryFn: () => getSessions() });
+  const bookingsQuery = useQuery({
+    queryKey: ["bookings", userId],
+    queryFn: getBookings,
+    enabled: userId !== null,
+  });
   const tutors = tutorsQuery.data ?? [];
   const sessions = sessionsQuery.data ?? [];
   const isLoading = tutorsQuery.isPending || sessionsQuery.isPending;
   const isError = tutorsQuery.isError || sessionsQuery.isError;
   const bookingMutation = useMutation({
     mutationFn: (payload: NewBooking) => createBooking(payload),
-    onSuccess: (createdBooking) => {
-      setBooking(createdBooking);
+    onSuccess: () => {
       bookingForm.reset();
-      void queryClient.invalidateQueries({ queryKey: ["bookings", tutee.id], exact: true });
+      void queryClient.invalidateQueries({ queryKey: ["bookings", userId], exact: true });
     },
   });
 
@@ -85,12 +92,30 @@ function DashboardPage() {
   const selectedTutor = selectedTutorId
     ? tutors.find((tutor) => tutor.id === selectedTutorId)
     : undefined;
+  const booking = useMemo(() => {
+    const activeBookings = (bookingsQuery.data ?? []).filter(
+      (item) => item.status !== BookingStatus.Cancelled && item.status !== BookingStatus.Completed,
+    );
+    const bookingsWithSessions = activeBookings
+      .map((item) => ({ item, session: sessions.find((session) => session.id === item.sessionId) }))
+      .filter((entry): entry is { item: Booking; session: NonNullable<typeof entry.session> } => Boolean(entry.session));
+    const upcoming = bookingsWithSessions
+      .filter(({ session }) => session.scheduledAt.getTime() >= Date.now())
+      .sort((a, b) => a.session.scheduledAt.getTime() - b.session.scheduledAt.getTime());
+
+    return upcoming[0]?.item ?? activeBookings.sort(
+      (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    )[0] ?? null;
+  }, [bookingsQuery.data, sessions]);
   const bookedSession = booking
     ? sessions.find((session) => session.id === booking.sessionId)
     : undefined;
   const bookedTutor = bookedSession
     ? tutors.find((tutor) => tutor.id === bookedSession.tutorId)
     : undefined;
+  const bookingStatusLabel = booking
+    ? `${booking.status.charAt(0).toUpperCase()}${booking.status.slice(1)}`
+    : null;
   const activeTutorCount = tutors.filter((tutor) => tutor.isActive).length;
 
   const handleSearch = (event: React.ChangeEvent<HTMLInputElement>): void => {
@@ -106,12 +131,15 @@ function DashboardPage() {
   };
 
   const handleBook = (values: BookingFormValues): void => {
+    if (userId === null) {
+      navigate("/login");
+      return;
+    }
+
     bookingMutation.mutate({
       sessionId: values.sessionId,
-      tuteeId: tutee.id,
       status: BookingStatus.Confirmed,
       note: values.note.trim() || undefined,
-      createdAt: new Date().toISOString(),
     });
   };
 
@@ -289,14 +317,26 @@ function DashboardPage() {
             {booking && <BookingBadge booking={booking} />}
           </div>
 
-          {booking && bookedSession ? (
+          {userId === null ? (
+            <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+              Log in to book a session and view your booking summary.
+            </div>
+          ) : bookingsQuery.isPending ? (
+            <div className="mt-4 animate-pulse rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
+              Loading your booking...
+            </div>
+          ) : bookingsQuery.isError ? (
+            <div role="alert" className="mt-4 rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-5 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
+              Could not load your current booking.
+            </div>
+          ) : booking && bookedSession ? (
             <div className="mt-4 space-y-3">
               <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50/80 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
                 <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                  Session confirmed
+                  Booking {booking.status}
                 </p>
                 <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-100/80">
-                  You are booked for {bookedSession.subject} with {bookedTutor?.name}.
+                  {bookedSession.subject} with {bookedTutor?.name}.
                 </p>
               </div>
               <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/80">
@@ -339,7 +379,7 @@ function DashboardPage() {
             </div>
           ) : (
             <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-              No session booked yet. Add an optional note, then choose a session
+              No active booking. Add an optional note, then choose a session
               from the availability list.
             </div>
           )}
@@ -388,7 +428,7 @@ function DashboardPage() {
             Refresh data
           </h2>
           <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Reload the tutor and session collections from json-server.
+            Reload the tutor and session collections from the API.
           </p>
           <button
             type="button"
@@ -461,26 +501,40 @@ function DashboardPage() {
               </div>
 
               <div className="grid gap-2 sm:grid-cols-2">
+                {userName && (
                 <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                     Student
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                    {tutee.name}
+                    {userName}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
                     Ready to book
                   </p>
                 </div>
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80">
+                )}
+                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80 ${userName ? "" : "sm:col-span-2"}`}>
                   <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
                     Current status
                   </p>
                   <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                    {booking ? "Session confirmed" : "Awaiting selection"}
+                    {userId === null
+                      ? "Sign in to view"
+                      : bookingsQuery.isPending
+                        ? "Loading booking..."
+                        : bookingsQuery.isError
+                          ? "Status unavailable"
+                          : bookingStatusLabel ?? "No active booking"}
                   </p>
                   <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    {booking ? "Saved in summary" : "Choose a tutor or session"}
+                    {userId === null
+                      ? "Log in to book a session"
+                      : bookingsQuery.isError
+                        ? "Check the API and try again"
+                        : booking && bookedSession
+                          ? `${bookedSession.subject}${bookedTutor ? ` with ${bookedTutor.name}` : ""}`
+                          : "Choose a tutor or session"}
                   </p>
                 </div>
               </div>
