@@ -36,6 +36,7 @@ function Layout() {
             <NavLink to="/tutors" className={navLinkClass}>Tutors</NavLink>
             <NavLink to="/sessions" className={navLinkClass}>Sessions</NavLink>
             <NavLink to="/bookings" className={navLinkClass}>My Bookings</NavLink>
+            {userName !== null && <NavLink to="/session-prep" className={navLinkClass}>AI Session Prep</NavLink>}
             <div className="ml-auto flex items-center gap-2">
               {userName === null ? (
                 <>

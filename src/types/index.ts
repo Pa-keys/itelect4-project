@@ -10,3 +10,5 @@ export type NewBooking = Pick<Booking, "sessionId" | "status" | "note">;
 export type BookingUpdate = Partial<Pick<Booking, "sessionId" | "status" | "note">>;
 export type AuthenticatedUser = Pick<User, "id" | "name" | "email" | "role" | "isActive">;
 export interface AuthResponse { token: string; user: AuthenticatedUser; }
+export type SupportLevel = "light-guidance" | "focused-help" | "foundational-help";
+export interface SessionPrep { learningGoal: string; focusAreas: string[]; prepSteps: string[]; supportLevel: SupportLevel; }

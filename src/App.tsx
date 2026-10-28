@@ -9,6 +9,7 @@ import NotFoundPage from "./pages/NotFoundPage";
 import SessionsPage from "./pages/SessionsPage";
 import TutorDetailPage from "./pages/TutorDetailPage";
 import TutorsPage from "./pages/TutorsPage";
+import SessionPrepPage from "./pages/SessionPrepPage";
 
 function App() {
   return (
@@ -22,6 +23,7 @@ function App() {
         <Route path="register" element={<RegisterPage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="bookings" element={<BookingsPage />} />
+          <Route path="session-prep" element={<SessionPrepPage />} />
         </Route>
         <Route path="*" element={<NotFoundPage />} />
       </Route>
