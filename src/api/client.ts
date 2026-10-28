@@ -1,5 +1,5 @@
 import useAuthStore from "../store/authStore";
-import type { ApiBooking, ApiTutoringSession, AuthResponse, AuthenticatedUser, Booking, BookingUpdate, NewBooking, Tutor, TutoringSession } from "../types";
+import type { ApiBooking, ApiTutoringSession, AuthResponse, AuthenticatedUser, Booking, BookingUpdate, NewBooking, SessionPrep, Tutor, TutoringSession } from "../types";
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim();
 if (!configuredApiUrl) throw new Error("VITE_API_URL is missing. Set it in .env before starting the frontend.");
@@ -90,6 +90,10 @@ export async function updateBooking(bookingId: string, payload: BookingUpdate): 
 
 export async function deleteBooking(bookingId: string): Promise<void> {
   await request<void>(`/api/bookings/${encodeURIComponent(bookingId)}`, { method: "DELETE", private: true });
+}
+
+export async function askAi(prompt: string): Promise<SessionPrep> {
+  return request<SessionPrep>("/api/ai", { method: "POST", body: { prompt }, private: true });
 }
 
 export async function loginUser(credentials: { email: string; password: string }): Promise<AuthResponse> {
