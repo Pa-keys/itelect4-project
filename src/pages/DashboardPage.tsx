@@ -544,7 +544,7 @@ function DashboardPage() {
                     id="booking-note"
                     {...bookingForm.register("note")}
                     placeholder="E.g., I'm stuck on React useEffect dependency arrays..."
-                    className="rounded-xl border-slate-200 bg-slate-50/50 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                    className="rounded-xl border-slate-200 bg-slate-50/50 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:bg-slate-900"
                   />
                   {bookingForm.formState.errors.note ? (
                     <p role="alert" className="mt-1 text-[11px] font-medium text-rose-600 dark:text-rose-400">

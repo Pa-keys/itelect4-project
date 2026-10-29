@@ -257,7 +257,7 @@ function SessionPrepPage() {
               disabled={mutation.isPending}
               aria-invalid={Boolean(form.formState.errors.prompt)}
               {...form.register("prompt")}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:ring-4 focus:ring-purple-500/10 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:ring-purple-500/20 disabled:opacity-50"
+              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-purple-500 focus:bg-white focus:ring-4 focus:ring-purple-500/10 dark:border-slate-800 dark:bg-slate-950 dark:text-slate-100 dark:placeholder:text-slate-500 dark:focus:border-purple-400 dark:focus:bg-slate-900 dark:focus:ring-purple-500/20 disabled:opacity-50"
               placeholder="E.g., I'm having trouble understanding how async/await works in JavaScript when handling multiple API calls in parallel..."
             />
             {form.formState.errors.prompt && (

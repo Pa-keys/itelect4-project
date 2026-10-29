@@ -88,6 +88,23 @@
     font: inherit;
   }
 
+  /* Prevent browser autofill from breaking dark mode input backgrounds */
+  .dark input:-webkit-autofill,
+  .dark input:-webkit-autofill:hover,
+  .dark input:-webkit-autofill:focus,
+  .dark textarea:-webkit-autofill,
+  .dark textarea:-webkit-autofill:hover,
+  .dark textarea:-webkit-autofill:focus,
+  .dark select:-webkit-autofill,
+  .dark select:-webkit-autofill:hover,
+  .dark select:-webkit-autofill:focus {
+    -webkit-text-fill-color: #f8fafc !important;
+    -webkit-box-shadow: 0 0 0 1000px #020617 inset !important;
+    box-shadow: 0 0 0 1000px #020617 inset !important;
+    transition: background-color 5000s ease-in-out 0s;
+    caret-color: #f8fafc;
+  }
+
   ::selection {
     @apply bg-blue-500/20 text-blue-950 dark:bg-blue-500/30 dark:text-blue-100;
   }
