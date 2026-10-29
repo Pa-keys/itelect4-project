@@ -20,6 +20,20 @@ import {
   type Booking,
   type NewBooking,
 } from "../types";
+import {
+  Search,
+  Sparkles,
+  Calendar,
+  Clock,
+  User,
+  BookOpen,
+  ArrowRight,
+  CheckCircle2,
+  RefreshCw,
+  X,
+  Filter,
+  GraduationCap,
+} from "lucide-react";
 
 const dayFormatter = new Intl.DateTimeFormat("en-PH", {
   weekday: "short",
@@ -34,6 +48,7 @@ const timeFormatter = new Intl.DateTimeFormat("en-PH", {
 
 function DashboardPage() {
   const [search, setSearch] = useState<string>("");
+  const [selectedSubject, setSelectedSubject] = useState<string | null>(null);
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   const [showSearchTip, toggleSearchTip] = useToggle(true);
   const previousSearch = usePrevious<string>(search);
@@ -42,12 +57,16 @@ function DashboardPage() {
   const navigate = useNavigate();
   const userId = useAuthStore((state) => state.user?.id ?? null);
   const userName = useAuthStore((state) => state.user?.name ?? null);
+
   const bookingForm = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),
     mode: "onBlur",
     defaultValues: { sessionId: "", note: "" },
   });
+
   const selectedSessionId = bookingForm.watch("sessionId");
+  const noteValue = bookingForm.watch("note") ?? "";
+
   const tutorsQuery = useQuery({ queryKey: ["tutors"], queryFn: getTutors });
   const sessionsQuery = useQuery({ queryKey: ["sessions"], queryFn: () => getSessions() });
   const bookingsQuery = useQuery({
@@ -55,10 +74,12 @@ function DashboardPage() {
     queryFn: getBookings,
     enabled: userId !== null,
   });
+
   const tutors = tutorsQuery.data ?? [];
   const sessions = sessionsQuery.data ?? [];
   const isLoading = tutorsQuery.isPending || sessionsQuery.isPending;
   const isError = tutorsQuery.isError || sessionsQuery.isError;
+
   const bookingMutation = useMutation({
     mutationFn: (payload: NewBooking) => createBooking(payload),
     onSuccess: () => {
@@ -76,22 +97,41 @@ function DashboardPage() {
     if (!isLoading && !isError) searchInputRef.current?.focus();
   }, [isError, isLoading]);
 
+  // Unique subjects across all tutors for clickable filter pills
+  const allSubjects = useMemo(() => {
+    const set = new Set<string>();
+    tutors.forEach((tutor) => tutor.subjects?.forEach((subj) => set.add(subj)));
+    return Array.from(set);
+  }, [tutors]);
+
   const filteredTutors = useMemo(
     () =>
-      tutors.filter((tutor) =>
-        `${tutor.name} ${tutor.subjects?.join(" ")}`
+      tutors.filter((tutor) => {
+        const matchesSearch = `${tutor.name} ${tutor.subjects?.join(" ")}`
           .toLowerCase()
-          .includes(search.toLowerCase()),
-      ),
-    [search, tutors],
+          .includes(search.toLowerCase());
+        const matchesSubject = !selectedSubject || tutor.subjects?.includes(selectedSubject);
+        return matchesSearch && matchesSubject;
+      }),
+    [search, selectedSubject, tutors],
   );
 
   const visibleSessions = sessions.filter(
     (session) => !selectedTutorId || session.tutorId === selectedTutorId,
   );
+
   const selectedTutor = selectedTutorId
     ? tutors.find((tutor) => tutor.id === selectedTutorId)
     : undefined;
+
+  const currentlyChosenSession = selectedSessionId
+    ? sessions.find((session) => session.id === selectedSessionId)
+    : undefined;
+
+  const currentlyChosenTutor = currentlyChosenSession
+    ? tutors.find((tutor) => tutor.id === currentlyChosenSession.tutorId)
+    : undefined;
+
   const booking = useMemo(() => {
     const activeBookings = (bookingsQuery.data ?? []).filter(
       (item) => item.status !== BookingStatus.Cancelled && item.status !== BookingStatus.Completed,
@@ -107,6 +147,7 @@ function DashboardPage() {
       (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
     )[0] ?? null;
   }, [bookingsQuery.data, sessions]);
+
   const bookedSession = booking
     ? sessions.find((session) => session.id === booking.sessionId)
     : undefined;
@@ -143,405 +184,420 @@ function DashboardPage() {
     });
   };
 
-  const statusContent = isLoading ? (
-    <div className="overflow-hidden rounded-[1.75rem] border border-slate-200/80 bg-white/95 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10">
-      <div className="grid gap-4 p-4 md:p-5 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)_22rem]">
-        <div className="animate-pulse rounded-[1.5rem] border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-          <div className="h-3 w-24 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-3 h-6 w-2/3 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            <div className="h-52 rounded-[1.5rem] bg-slate-100 dark:bg-slate-800" />
-            <div className="h-52 rounded-[1.5rem] bg-slate-100 dark:bg-slate-800" />
-          </div>
-        </div>
-        <div className="animate-pulse rounded-[1.5rem] border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-          <div className="h-3 w-32 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-3 h-6 w-2/3 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-5 grid gap-3 lg:grid-cols-2">
-            <div className="h-48 rounded-[1.5rem] bg-slate-100 dark:bg-slate-800" />
-            <div className="h-48 rounded-[1.5rem] bg-slate-100 dark:bg-slate-800" />
-          </div>
-        </div>
-        <div className="animate-pulse rounded-[1.5rem] border border-slate-200/70 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-800/50">
-          <div className="h-3 w-24 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-3 h-8 w-1/2 rounded-full bg-slate-200 dark:bg-slate-700" />
-          <div className="mt-4 h-24 rounded-[1.25rem] bg-slate-100 dark:bg-slate-800" />
-          <div className="mt-3 h-12 rounded-2xl bg-slate-100 dark:bg-slate-800" />
-        </div>
-      </div>
-      <p className="px-4 pb-4 text-sm text-slate-500 dark:text-slate-400 md:px-5 md:pb-5">
-        Loading tutors and session availability...
-      </p>
-    </div>
-  ) : isError ? (
-    <div className="rounded-[1.75rem] border border-rose-200 bg-rose-50/90 p-5 text-rose-900 shadow-sm ring-1 ring-rose-950/5 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100 dark:ring-white/10 sm:p-6">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-rose-700 dark:text-rose-200">
-        Loading issue
-      </p>
-      <h2 className="mt-2 text-xl font-semibold">Could not load tutor data.</h2>
-      <p className="mt-2 max-w-2xl text-sm leading-6 text-rose-800/90 dark:text-rose-100/80">
-        The tutoring API did not respond. Check that it is running, then use the
-        retry action to restore the tutor directory and booking workflow.
-      </p>
-      <button
-        type="button"
-        onClick={reloadTutorData}
-        className="mt-4 inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-rose-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-slate-950"
-      >
-        Retry loading
-      </button>
-    </div>
-  ) : (
-    <div className="grid items-start gap-3 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)_20rem] 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)_21rem]">
-      <section className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-              Tutor directory
-            </p>
-            <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-              {search ? `Tutors matching "${search}"` : "Choose a peer tutor"}
-            </h2>
-            <p className="mt-1 max-w-xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-              Review teaching strengths, subjects, and availability before
-              narrowing the sessions beside this list.
+  return (
+    <div className="space-y-6">
+      {/* Hero Welcome Banner & High-Level Statistics */}
+      <section className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90 sm:p-8">
+        <div className="absolute right-0 top-0 -mr-16 -mt-16 h-64 w-64 rounded-full bg-blue-500/5 blur-3xl dark:bg-blue-400/5 pointer-events-none" />
+        
+        <div className="relative flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 dark:border-blue-900/50 dark:bg-blue-950/40 dark:text-blue-300 mb-3">
+              <GraduationCap className="h-3.5 w-3.5" />
+              <span>Campus Peer Tutoring Hub</span>
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-slate-900 dark:text-white leading-tight">
+              Master your coursework with vetted peer mentors.
+            </h1>
+            <p className="mt-2 text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
+              Find top student tutors, select upcoming session slots, and generate personalized Gemini-powered study roadmaps before every session.
             </p>
           </div>
-          <div className="grid grid-cols-2 gap-2 sm:min-w-64">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/80">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                Active tutors
-              </p>
-              <p className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
+
+          {/* Quick Metrics Bar */}
+          <div className="flex flex-wrap sm:flex-nowrap gap-3">
+            <div className="flex-1 sm:w-36 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/60">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Active Tutors
+                </span>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
                 {activeTutorCount}
               </p>
             </div>
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2.5 dark:border-slate-700 dark:bg-slate-800/80">
-              <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                Open sessions
-              </p>
-              <p className="mt-1 text-xl font-semibold text-slate-950 dark:text-white">
+            <div className="flex-1 sm:w-36 rounded-2xl border border-slate-200/90 bg-slate-50/80 p-3.5 dark:border-slate-800 dark:bg-slate-800/60">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">
+                  Open Sessions
+                </span>
+              </div>
+              <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-white">
                 {visibleSessions.length}
               </p>
             </div>
           </div>
         </div>
 
-        {filteredTutors.length === 0 ? (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-            No tutors match your search. Try React, TypeScript, or Algorithms.
-          </div>
-        ) : (
-          <div className="mt-3 grid grid-cols-1 gap-2.5 lg:grid-cols-2">
-            {filteredTutors.map((tutor) => (
-              <UserCard
-                key={tutor.id}
-                user={tutor}
-                isSelected={selectedTutorId === tutor.id}
-                onSelectTutor={setSelectedTutorId}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section role="group" aria-labelledby="session-selection-heading" aria-describedby={bookingForm.formState.errors.sessionId ? "sessionId-error" : undefined} className="min-w-0 rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-              Session availability
-            </p>
-            <h2 id="session-selection-heading" className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-              {selectedTutor
-                ? `Sessions with ${selectedTutor.name}`
-                : "All available sessions"}
-            </h2>
-            <p className="mt-1 max-w-xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-              Compare schedule, duration, and subject focus, then book directly.
-            </p>
-          </div>
-          {selectedTutor && (
-            <button
-              type="button"
-              onClick={() => setSelectedTutorId(null)}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-950"
-            >
-              Clear tutor filter
-            </button>
-          )}
-        </div>
-
-        <input type="hidden" {...bookingForm.register("sessionId")} aria-invalid={bookingForm.formState.errors.sessionId ? true : undefined} />
-        {visibleSessions.length === 0 ? (
-          <div className="mt-4 rounded-[1.5rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-            No sessions are available for this tutor right now.
-          </div>
-        ) : (
-          <div className="mt-3 grid grid-cols-1 gap-2.5 lg:grid-cols-2">
-            {visibleSessions.map((session) => {
-              const tutor = tutors.find((item) => item.id === session.tutorId);
-
-              return tutor ? (
-                <TutoringSessionCard
-                  key={session.id}
-                  session={session}
-                  tutorName={tutor.name}
-                  isSelected={selectedSessionId === session.id}
-                  isBookingPending={bookingMutation.isPending}
-                  onBookSession={handleSelectSession}
-                  variant={selectedTutorId ? "compact" : "default"}
-                />
-              ) : null;
-            })}
-          </div>
-        )}
-        {bookingForm.formState.errors.sessionId && (
-          <p id="sessionId-error" role="alert" className="mt-3 text-sm font-medium text-rose-700 dark:text-rose-300">
-            {bookingForm.formState.errors.sessionId.message}
-          </p>
-        )}
-      </section>
-
-      <form onSubmit={bookingForm.handleSubmit(handleBook)} noValidate>
-      <aside className="min-w-0 space-y-2">
-        <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-                Booking summary
-              </p>
-              <h2 className="mt-2 text-lg font-semibold tracking-tight text-slate-950 dark:text-white">
-                Your booking
-              </h2>
-            </div>
-            {booking && <BookingBadge booking={booking} />}
-          </div>
-
-          {userId === null ? (
-            <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-              Log in to book a session and view your booking summary.
-            </div>
-          ) : bookingsQuery.isPending ? (
-            <div className="mt-4 animate-pulse rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-              Loading your booking...
-            </div>
-          ) : bookingsQuery.isError ? (
-            <div role="alert" className="mt-4 rounded-[1.25rem] border border-rose-200 bg-rose-50 px-4 py-5 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">
-              Could not load your current booking.
-            </div>
-          ) : booking && bookedSession ? (
-            <div className="mt-4 space-y-3">
-              <div className="rounded-[1.25rem] border border-emerald-200 bg-emerald-50/80 p-3.5 dark:border-emerald-500/20 dark:bg-emerald-500/10">
-                <p className="text-sm font-medium text-emerald-900 dark:text-emerald-100">
-                  Booking {booking.status}
-                </p>
-                <p className="mt-1 text-sm leading-6 text-emerald-800 dark:text-emerald-100/80">
-                  {bookedSession.subject} with {bookedTutor?.name}.
-                </p>
-              </div>
-              <div className="rounded-[1.25rem] border border-slate-200 bg-slate-50 p-4 dark:border-slate-700 dark:bg-slate-800/80">
-                <p className="text-base font-semibold text-slate-950 dark:text-white">
-                  {bookedSession.subject}
-                </p>
-                <div className="mt-3 grid gap-2 text-sm text-slate-600 dark:text-slate-300">
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Tutor</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {bookedTutor?.name}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Date</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {dayFormatter.format(bookedSession.scheduledAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Time</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {timeFormatter.format(bookedSession.scheduledAt)}
-                    </span>
-                  </div>
-                  <div className="flex items-center justify-between gap-3">
-                    <span>Duration</span>
-                    <span className="font-medium text-slate-900 dark:text-white">
-                      {bookedSession.durationMinutes} minutes
-                    </span>
-                  </div>
-                </div>
-              </div>
-              {booking.note && (
-                <div className="rounded-[1.25rem] border border-slate-200 bg-white p-3.5 text-sm leading-6 text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                  <p className="font-medium text-slate-900 dark:text-white">Learning note</p>
-                  <p className="mt-1.5">{booking.note}</p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="mt-4 rounded-[1.25rem] border border-dashed border-slate-300 bg-slate-50 px-4 py-5 text-sm leading-6 text-slate-500 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-400">
-              No active booking. Add an optional note, then choose a session
-              from the availability list.
-            </div>
-          )}
-
-          {bookingMutation.isError && (
-            <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-100">The booking could not be saved. Check the API and try again.</p>
-          )}
-
-          <div className="mt-3 space-y-1.5">
-            <Label htmlFor="booking-note" className="text-slate-700 dark:text-slate-200">
-              Learning note (optional)
-            </Label>
-            <Input
-              id="booking-note"
-              {...bookingForm.register("note")}
-              aria-invalid={bookingForm.formState.errors.note ? true : undefined}
-              aria-describedby={bookingForm.formState.errors.note ? "booking-note-error" : "booking-note-help"}
-              placeholder="What would you like to focus on during the session?"
-              className="min-h-10 rounded-xl border-slate-300 bg-white text-slate-900 focus-visible:border-sky-500 focus-visible:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:focus-visible:ring-sky-500/20"
+        {/* Live Search & Clickable Subject Filter Chips */}
+        <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-800 space-y-3.5">
+          <div className="relative">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 dark:text-slate-500" />
+            <input
+              ref={searchInputRef}
+              id="tutor-search"
+              type="text"
+              value={search}
+              onChange={handleSearch}
+              placeholder="Search by tutor name, subject (e.g. React, Python, Algorithms)..."
+              className="h-11 w-full rounded-xl border border-slate-200 bg-white pl-10 pr-10 text-sm text-slate-900 shadow-sm transition placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-4 focus:ring-blue-500/10 dark:border-slate-800 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-blue-500/20"
             />
-            {bookingForm.formState.errors.note ? (
-              <p id="booking-note-error" role="alert" className="text-sm font-medium text-rose-700 dark:text-rose-300">
-                {bookingForm.formState.errors.note.message}
-              </p>
-            ) : (
-              <p id="booking-note-help" className="text-xs text-slate-500 dark:text-slate-400">
-                If included, write at least 10 meaningful characters (maximum 160).
-              </p>
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
             )}
           </div>
 
-          <Button
-            type="submit"
-            disabled={bookingMutation.isPending}
-            className="mt-3 min-h-10 w-full rounded-xl bg-sky-600 text-white hover:bg-sky-700 focus-visible:ring-sky-500 dark:bg-sky-600 dark:text-white dark:hover:bg-sky-500"
-          >
-            {bookingMutation.isPending ? "Saving booking..." : "Confirm selected session"}
-          </Button>
-        </section>
+          {/* Subject Pills Filter */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-1">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
+              <Filter className="h-3.5 w-3.5" />
+              <span>Filter:</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setSelectedSubject(null)}
+              className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                selectedSubject === null
+                  ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20 dark:bg-blue-600"
+                  : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+              }`}
+            >
+              All Subjects
+            </button>
+            {allSubjects.map((subj) => (
+              <button
+                key={subj}
+                type="button"
+                onClick={() => setSelectedSubject(selectedSubject === subj ? null : subj)}
+                className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                  selectedSubject === subj
+                    ? "bg-blue-600 text-white shadow-sm shadow-blue-500/20 dark:bg-blue-600"
+                    : "bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                }`}
+              >
+                {subj}
+              </button>
+            ))}
 
-        <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-sky-700 dark:text-sky-300">
-            API controls
-          </p>
-          <h2 className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-            Refresh data
-          </h2>
-          <p className="mt-1 text-xs leading-5 text-slate-500 dark:text-slate-400">
-            Reload the tutor and session collections from the API.
+            {showSearchTip && (
+              <button
+                type="button"
+                onClick={toggleSearchTip}
+                className="ml-auto text-xs text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 underline"
+              >
+                Dismiss tip
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* Main 2-Column Discovery & Sticky Checkout Architecture */}
+      {isLoading ? (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem]">
+          <div className="space-y-4">
+            <div className="h-44 rounded-2xl border border-slate-200 bg-white p-5 animate-pulse dark:border-slate-800 dark:bg-slate-900" />
+            <div className="h-44 rounded-2xl border border-slate-200 bg-white p-5 animate-pulse dark:border-slate-800 dark:bg-slate-900" />
+          </div>
+          <div className="h-80 rounded-2xl border border-slate-200 bg-white p-5 animate-pulse dark:border-slate-800 dark:bg-slate-900" />
+        </div>
+      ) : isError ? (
+        <div className="rounded-3xl border border-rose-200 bg-rose-50/80 p-6 text-rose-950 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-200 shadow-sm">
+          <div className="flex items-center gap-2 font-bold text-lg">
+            <span>Unable to retrieve peer tutors</span>
+          </div>
+          <p className="mt-2 text-sm text-rose-800 dark:text-rose-300">
+            The tutoring API did not return data. Please ensure the backend is active.
           </p>
           <button
             type="button"
             onClick={reloadTutorData}
-            className="mt-3 inline-flex min-h-10 w-full items-center justify-center rounded-2xl border border-sky-200 bg-sky-50 px-4 py-2.5 text-sm font-semibold text-sky-700 transition hover:bg-sky-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-200 dark:hover:bg-sky-500/15 dark:focus-visible:ring-offset-slate-950"
+            className="mt-4 inline-flex items-center gap-2 rounded-xl bg-rose-600 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-700 transition"
           >
-            Refresh tutor data
+            <RefreshCw className="h-4 w-4" />
+            <span>Retry Connection</span>
           </button>
-        </section>
-      </aside>
-      </form>
-    </div>
-  );
-
-  return (
-    <div className="mx-auto w-full max-w-[1800px]">
-          <section className="rounded-2xl border border-slate-200/80 bg-white/95 p-3 shadow-sm ring-1 ring-slate-950/5 dark:border-slate-800 dark:bg-slate-900/95 dark:ring-white/10 sm:p-4">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
-              <div className="min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-[0.28em] text-sky-700 dark:text-sky-300">
-                  Peer Tutoring Booking Platform
-                </p>
-                <h1 className="mt-1 text-2xl font-semibold leading-tight tracking-tight text-slate-950 dark:text-white sm:text-[1.7rem]">
-                  Book trusted academic support with clarity and confidence.
-                </h1>
-                <p className="mt-1 max-w-2xl text-xs leading-5 text-slate-600 dark:text-slate-300">
-                  Browse peer tutors, compare upcoming sessions, and confirm your
-                  learning plan without leaving the page.
-                </p>
+        </div>
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.3fr)_minmax(20rem,0.7fr)] xl:grid-cols-[minmax(0,1.4fr)_24rem] items-start">
+          {/* PRIMARY COLUMN: Tutors & Available Sessions */}
+          <div className="space-y-6">
+            {/* Tutors Section */}
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h2 className="text-lg font-bold tracking-tight text-slate-900 dark:text-white">
+                    Peer Tutors Directory
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Select a tutor to filter their specific available slots below.
+                  </p>
+                </div>
+                {selectedTutor && (
+                  <button
+                    type="button"
+                    onClick={() => setSelectedTutorId(null)}
+                    className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-300"
+                  >
+                    <X className="h-3.5 w-3.5" />
+                    <span>Clear Filter ({selectedTutor.name})</span>
+                  </button>
+                )}
               </div>
-              <div className="grid gap-2">
+
+              {filteredTutors.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+                  No tutors found matching your search. Try clearing filters or searching for "React" or "Python".
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {filteredTutors.map((tutor) => (
+                    <UserCard
+                      key={tutor.id}
+                      user={tutor}
+                      isSelected={selectedTutorId === tutor.id}
+                      onSelectTutor={(id) => setSelectedTutorId(selectedTutorId === id ? null : id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* Sessions Section */}
+            <section
+              role="group"
+              aria-labelledby="session-selection-heading"
+              className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h2
+                    id="session-selection-heading"
+                    className="text-lg font-bold tracking-tight text-slate-900 dark:text-white"
+                  >
+                    {selectedTutor
+                      ? `Available Slots with ${selectedTutor.name}`
+                      : "Upcoming Available Sessions"}
+                  </h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Choose a session to populate the checkout drawer on the right.
+                  </p>
+                </div>
+                <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {visibleSessions.length} session{visibleSessions.length === 1 ? "" : "s"} open
+                </span>
+              </div>
+
+              {visibleSessions.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm text-slate-500 dark:border-slate-800 dark:bg-slate-900/50 dark:text-slate-400">
+                  No sessions currently scheduled for this tutor. Select another tutor or view all sessions.
+                </div>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {visibleSessions.map((session) => {
+                    const tutor = tutors.find((item) => item.id === session.tutorId);
+                    return tutor ? (
+                      <TutoringSessionCard
+                        key={session.id}
+                        session={session}
+                        tutorName={tutor.name}
+                        isSelected={selectedSessionId === session.id}
+                        isBookingPending={bookingMutation.isPending}
+                        onBookSession={handleSelectSession}
+                        variant="default"
+                      />
+                    ) : null;
+                  })}
+                </div>
+              )}
+              {bookingForm.formState.errors.sessionId && (
+                <p role="alert" className="mt-3 text-xs font-semibold text-rose-600 dark:text-rose-400">
+                  {bookingForm.formState.errors.sessionId.message}
+                </p>
+              )}
+            </section>
+          </div>
+
+          {/* SECONDARY COLUMN: Sticky Booking Checkout & Active Status */}
+          <div className="lg:sticky lg:top-20 space-y-4">
+            {/* Active Booking Card (with AI Session Prep Deep-Link) */}
+            {booking && bookedSession && (
+              <section className="rounded-3xl border border-emerald-200 bg-emerald-50/70 p-5 shadow-sm dark:border-emerald-800/50 dark:bg-emerald-950/20">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 dark:text-emerald-300">
+                      Active Booking
+                    </span>
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                      {bookedSession.subject}
+                    </h3>
+                  </div>
+                  <BookingBadge booking={booking} />
+                </div>
+
+                <div className="mt-3 space-y-2 text-xs text-slate-600 dark:text-slate-300 bg-white/80 dark:bg-slate-900/80 p-3 rounded-xl border border-emerald-100 dark:border-emerald-900/40">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 dark:text-slate-500">Tutor:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {bookedTutor?.name}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400 dark:text-slate-500">When:</span>
+                    <span className="font-semibold text-slate-900 dark:text-white">
+                      {dayFormatter.format(bookedSession.scheduledAt)} at {timeFormatter.format(bookedSession.scheduledAt)}
+                    </span>
+                  </div>
+                  {booking.note && (
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                      <span className="text-slate-400 dark:text-slate-500 block text-[11px]">Note:</span>
+                      <p className="italic text-slate-700 dark:text-slate-300 text-[11px] mt-0.5">
+                        "{booking.note}"
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* AI Prep Call to Action */}
                 <button
                   type="button"
-                  onClick={toggleSearchTip}
-                  className="inline-flex min-h-10 items-center justify-center rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800 dark:focus-visible:ring-offset-slate-950"
+                  onClick={() =>
+                    navigate(
+                      `/session-prep?subject=${encodeURIComponent(
+                        bookedSession.subject,
+                      )}&tutor=${encodeURIComponent(
+                        bookedTutor?.name ?? "",
+                      )}&note=${encodeURIComponent(booking.note ?? "")}`,
+                    )
+                  }
+                  className="mt-3.5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 py-2.5 px-3 text-xs font-bold text-white shadow-sm shadow-purple-600/20 hover:from-purple-700 hover:to-indigo-700 transition"
                 >
-                  {showSearchTip ? "Hide search tip" : "Show search tip"}
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>Prepare with Gemini AI</span>
                 </button>
-              </div>
-            </div>
+              </section>
+            )}
 
-            <div className="mt-3 grid gap-3 lg:grid-cols-[minmax(0,1.45fr)_minmax(28rem,0.55fr)] lg:items-start">
-              <div className="min-w-0 space-y-2">
-                <label
-                  htmlFor="tutor-search"
-                  className="block text-xs font-medium text-slate-700 dark:text-slate-200"
-                >
-                  Search tutors or subjects
-                  <input
-                    ref={searchInputRef}
-                    id="tutor-search"
-                    value={search}
-                    onChange={handleSearch}
-                    placeholder="Try React, TypeScript, or Maria"
-                    className="mt-1.5 min-h-10 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-sky-500 focus:ring-4 focus:ring-sky-100 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 dark:focus:ring-sky-500/20"
-                  />
-                </label>
-                <div className="flex flex-wrap gap-2" aria-live="polite">
-                  {showSearchTip && (
-                    <p className="rounded-full border border-sky-200 bg-sky-50 px-2.5 py-1 text-xs text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-200">
-                      Search by tutor name or subject to narrow the directory.
-                    </p>
-                  )}
-                  {previousSearch !== undefined && previousSearch !== search && (
-                    <p className="rounded-full border border-slate-200 bg-slate-100 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                      Previous search: "{previousSearch || "empty"}"
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                {userName && (
-                <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                    Student
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                    {userName}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    Ready to book
-                  </p>
-                </div>
+            {/* Session Checkout Widget */}
+            <section className="rounded-3xl border border-slate-200/80 bg-white p-5 sm:p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/90">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <h3 className="font-bold text-slate-900 dark:text-white text-base">
+                  Session Checkout
+                </h3>
+                {currentlyChosenSession && (
+                  <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 dark:bg-blue-950/60 dark:text-blue-300">
+                    Slot Ready
+                  </span>
                 )}
-                <div className={`rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 dark:border-slate-700 dark:bg-slate-800/80 ${userName ? "" : "sm:col-span-2"}`}>
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                    Current status
-                  </p>
-                  <p className="mt-1 text-sm font-semibold text-slate-950 dark:text-white">
-                    {userId === null
-                      ? "Sign in to view"
-                      : bookingsQuery.isPending
-                        ? "Loading booking..."
-                        : bookingsQuery.isError
-                          ? "Status unavailable"
-                          : bookingStatusLabel ?? "No active booking"}
-                  </p>
-                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">
-                    {userId === null
-                      ? "Log in to book a session"
-                      : bookingsQuery.isError
-                        ? "Check the API and try again"
-                        : booking && bookedSession
-                          ? `${bookedSession.subject}${bookedTutor ? ` with ${bookedTutor.name}` : ""}`
-                          : "Choose a tutor or session"}
-                  </p>
-                </div>
               </div>
-            </div>
-          </section>
 
-          <section className="mt-3">{statusContent}</section>
+              {currentlyChosenSession ? (
+                <div className="mt-4 space-y-3">
+                  <div className="rounded-2xl border border-blue-100 bg-blue-50/50 p-3.5 dark:border-blue-950 dark:bg-blue-950/30">
+                    <p className="text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 font-bold">
+                      Selected Topic
+                    </p>
+                    <p className="text-base font-bold text-slate-900 dark:text-white mt-0.5">
+                      {currentlyChosenSession.subject}
+                    </p>
+                    <div className="mt-2 text-xs text-slate-600 dark:text-slate-300 space-y-1">
+                      <p>
+                        Mentor: <span className="font-semibold text-slate-900 dark:text-white">{currentlyChosenTutor?.name}</span>
+                      </p>
+                      <p>
+                        Schedule: <span className="font-semibold text-slate-900 dark:text-white">{dayFormatter.format(currentlyChosenSession.scheduledAt)} at {timeFormatter.format(currentlyChosenSession.scheduledAt)}</span>
+                      </p>
+                      <p>
+                        Duration: <span className="font-semibold text-slate-900 dark:text-white">{currentlyChosenSession.durationMinutes} mins</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-4 rounded-2xl border border-dashed border-slate-200 bg-slate-50/80 p-4 text-center text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">
+                  No session chosen yet. Click <span className="font-semibold text-slate-700 dark:text-slate-300">"Select this Session"</span> on any slot to begin.
+                </div>
+              )}
+
+              {/* Booking Form (Learning Note + Confirm Action) */}
+              <form onSubmit={bookingForm.handleSubmit(handleBook)} className="mt-4 space-y-3" noValidate>
+                <input type="hidden" {...bookingForm.register("sessionId")} />
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label htmlFor="booking-note" className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Learning Note (Optional)
+                    </Label>
+                    <span className="text-[10px] text-slate-400">
+                      {noteValue.length}/160
+                    </span>
+                  </div>
+                  <Input
+                    id="booking-note"
+                    {...bookingForm.register("note")}
+                    placeholder="E.g., I'm stuck on React useEffect dependency arrays..."
+                    className="rounded-xl border-slate-200 bg-slate-50/50 text-xs text-slate-900 placeholder:text-slate-400 focus:bg-white dark:border-slate-700 dark:bg-slate-950 dark:text-white"
+                  />
+                  {bookingForm.formState.errors.note ? (
+                    <p role="alert" className="mt-1 text-[11px] font-medium text-rose-600 dark:text-rose-400">
+                      {bookingForm.formState.errors.note.message}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[10px] text-slate-400 dark:text-slate-500">
+                      If adding a note, write at least 10 characters.
+                    </p>
+                  )}
+                </div>
+
+                {bookingMutation.isError && (
+                  <p role="alert" className="rounded-xl border border-rose-200 bg-rose-50 p-2.5 text-xs text-rose-800 dark:border-rose-900/40 dark:bg-rose-950/30 dark:text-rose-300">
+                    Could not confirm session. Please check connection and try again.
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  disabled={bookingMutation.isPending || !selectedSessionId}
+                  className="w-full rounded-xl bg-blue-600 py-2.5 text-xs font-bold text-white shadow-sm shadow-blue-500/20 hover:bg-blue-700 dark:bg-blue-600 dark:hover:bg-blue-500 disabled:opacity-50"
+                >
+                  {bookingMutation.isPending ? (
+                    "Confirming Booking..."
+                  ) : userId === null ? (
+                    "Log In to Confirm Booking"
+                  ) : (
+                    <>
+                      <span>Confirm Session Booking</span>
+                      <ArrowRight className="h-3.5 w-3.5 ml-1" />
+                    </>
+                  )}
+                </Button>
+              </form>
+            </section>
+
+            {/* Quick Controls Card */}
+            <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-4 text-xs text-slate-500 dark:border-slate-800 dark:bg-slate-900/60 dark:text-slate-400 flex items-center justify-between">
+              <span>Directory synced with backend</span>
+              <button
+                type="button"
+                onClick={reloadTutorData}
+                title="Refresh tutor and session data"
+                className="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-slate-700 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 font-semibold"
+              >
+                <RefreshCw className="h-3 w-3" />
+                <span>Refresh</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
